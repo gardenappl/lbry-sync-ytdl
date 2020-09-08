@@ -66,7 +66,7 @@ print_help() {
 	-h, --help 		Print help
 	-l, --lbrynet-server 	Custom URL to connect to LBRY daemon
 	    --optimize-video 	Use FFmpeg to transcode video, ensuring common web browser support
-	-p, --publish 		Actually publish content rather than 
+	-p, --publish 		Actually publish content, rather than just printing info
 	    --validate-video 	Ensure common web browser support for the video file, uses FFmpeg
 	-v, --version 		Print version and exit
 	-y, --ytdl-options 	Set custom options for youtube-dl (e.g. \"--playlist-start=10\")"
