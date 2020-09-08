@@ -1,0 +1,174 @@
+#!/bin/sh
+
+set -o errexit
+
+
+options=y:pb:l:c:hv
+longopts=ytdl-options:,publish,bid:,lbrynet-server:,channel:,validate-video,help,optimize-video,version
+parsed=$(getopt --options=$options --longoptions=$longopts --name "$0" -- "$@")
+eval set -- "$parsed"
+
+while true; do
+	case "$1" in
+		-h|--help )
+			help=y
+			shift
+			;;
+		-v|--version )
+			version=y
+			shift
+			;;
+		--optimize-video )
+			optimize=y
+			shift
+			;;
+		--validate-video )
+			validate=y
+			shift
+			;;
+		-c|--channel )
+			channel="$2"
+			shift 2
+			;;
+		-y|--ytdl-options )
+			ytdl_options="$2"
+			shift 2
+			;;
+		-p|--publish )
+			upload=y
+			shift
+			;;
+		-b|--bid )
+			bid="$2"
+			shift 2
+			;;
+		-l|--lbrynet-server )
+			lbrynet_server="$2"
+			shift 2
+			;;
+		-- )
+			shift
+			break
+			;;
+		* )
+			echo "Programming error: $1"
+			exit 1
+			;;
+	esac
+done
+
+print_help() {
+	echo \
+"Usage: lbry-sync-ytdl URL [options...]
+
+	-b, --bid 		Amount of LBC to deposit for each piece of content
+	-c, --channel 		Name of publisher channel (e.g. \"@MyCoolChannel\")
+	-h, --help 		Print help
+	-l, --lbrynet-server 	Custom URL to connect to LBRY daemon
+	    --optimize-video 	Use FFmpeg to transcode video, ensuring common web browser support
+	-p, --publish 		Actually publish content rather than 
+	    --validate-video 	Ensure common web browser support for the video file, uses FFmpeg
+	-v, --version 		Print version and exit
+	-y, --ytdl-options 	Set custom options for youtube-dl (e.g. \"--playlist-start=10\")"
+}
+
+if [ -n "$help" ]; then
+	print_help
+	exit 0
+elif [ -n "$version" ]; then
+	echo "lbry-sync-ytdl v1.0"
+	exit 0
+elif [ -z "$1" ]; then
+	print_help
+	exit 1
+fi
+
+
+lbrynet_server="${lbrynet_server:-http://localhost:5279/}"
+
+if [ -z "$upload" ]; then
+	echo "Note: operating in test mode. Content is not actually being published."
+	echo "Use the --publish option when you're sure you're ready to upload."
+fi
+
+if [ -n "$upload" ] && [ -z "$bid" ]; then
+	echo "Error: please specify LBC bid amount, using --bid parameter"
+	exit 1
+fi
+
+if [ -n "$channel" ]; then
+	channel="\"$channel\""
+else
+	channel=null
+fi
+
+if [ -n "$validate" ]; then
+	validate_option=true
+else
+	validate_option=false
+fi
+
+if [ -n "$optimize" ]; then
+	optimize_option=true
+else
+	optimize_option=false
+fi
+
+
+info_file="$(mktemp --tmpdir=. -t youtube-dl-info-XXXXXX.json)"
+trap "rm $info_file" EXIT
+echo "Writing youtube-dl info to $info_file..."
+
+youtube-dl "$1" $ytdl_options --print-json > "$info_file"
+
+while read -r line; do
+	# get name in a format that can be used for LBRY URLs
+	name="$(echo "$line" | jq '.title' | tr '[:upper:] ' '[:lower:]-' | tr --delete --complement '0-9a-zA-Z[=-=]' | tr --squeeze-repeats '-')"
+
+	echo
+	echo "Working with $name"
+
+	data="$(echo "$line" | jq \
+		"{
+			name: \"$name\",
+			channel_name: $channel,
+			tags: .tags,
+			license: .license,
+			release_time: .timestamp,
+			author: .uploader,
+			title: .title,
+			thumbnail_url: .thumbnail,
+			file_path: \"$PWD/\\(._filename)\",
+			bid: \"$bid\",
+			description: .description,
+			validate_file: $validate_option,
+			optimize_file: $optimize_option
+		} | map_values(select(. != null))")"
+	# strip null values because lbrynet can't handle them
+
+	if [ -z "$upload" ]; then
+		echo "$data" | jq
+	else
+		result="$(curl --silent -d"{\"method\": \"publish\", \"params\": $data}" "$lbrynet_server")"
+
+		#Print result
+		if message="$(echo "$result" | jq '.error.message' --exit-status --raw-output)"; then
+			echo "LBRY daemon reported an error."
+			echo "$message"
+			exit 1
+		elif url="$(echo "$result" | jq '.result.outputs | .[] | select(.type == "claim") | .permanent_url' --exit-status --raw-output)"; then
+			echo "Publishing as $url"
+		else
+			echo "Unknown error."
+			echo "$result"
+			exit 1
+		fi
+	fi
+done < "$info_file"
+
+if [ -n "$upload" ]; then
+	echo "Done. Please wait for a few minutes for claims to be processed by the network."
+else
+	echo "Done. Please verify that all the data is correct,"
+	echo "then run the command again with the --publish option."
+fi
