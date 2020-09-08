@@ -115,9 +115,9 @@ else
 fi
 
 
-info_file="$(mktemp --tmpdir=. -t youtube-dl-info-XXXXXX.json)"
+info_file="$(mktemp -t youtube-dl-info-XXXXXX.json)"
 trap "rm $info_file" EXIT
-echo "Writing youtube-dl info to $info_file..."
+echo "Retrieving data with youtube-dl..."
 
 youtube-dl "$1" $ytdl_options --print-json > "$info_file"
 
