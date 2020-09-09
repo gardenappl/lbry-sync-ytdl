@@ -1,5 +1,7 @@
 #!/bin/sh
 
+_lbry_sync_ytdl_version="v1.1"
+
 set -o errexit
 
 
@@ -71,7 +73,7 @@ if [ -n "$help" ]; then
 	print_help
 	exit 0
 elif [ -n "$version" ]; then
-	echo "lbry-sync-ytdl v1.0"
+	echo "lbry-sync-ytdl $_lbry_sync_ytdl_version"
 	exit 0
 elif [ -z "$1" ]; then
 	print_help
