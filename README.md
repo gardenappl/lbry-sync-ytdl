@@ -6,6 +6,12 @@
 * Maintains metadata such as descriptions, tags, upload date, author name, license name.
 * Choose upload channel and LBC bid amount.
 
+## Disclaimer
+
+Please keep in mind that most content on sites like YouTube is copyrighted. It is illegal to publish them on LBRY without the creator's permission.
+
+If you want to syncronyse your YouTube channel, you should probably use https://lbry.com/youtube instead.
+
 ## Usage
 
 Basic usage example:
