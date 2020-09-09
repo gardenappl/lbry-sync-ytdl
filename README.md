@@ -10,21 +10,21 @@
 
 Basic usage example:
 
-`lbry-sync-ytdl https://www.youtube.com/watch?v=ZbJmQSuNcQ4`
+`lbry-sync-ytdl "https://www.youtube.com/watch?v=dPZTh2NKTm4"`
 
 Will run the script *in test mode* and just show the information that youtube-dl managed to extract. Once you confirm that it's the right information, you can publish it with:
 
-`lbry-sync-ytdl --publish https://www.youtube.com/watch?v=ZbJmQSuNcQ4 --bid=1.0`
+`lbry-sync-ytdl --publish "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0`
 
 This will publish the content anonymously.
 
-`lbry-sync-ytdl --publish --channel="@MyAwesomeChannel" https://www.youtube.com/watch?v=ZbJmQSuNcQ4 --bid=1.0`
+`lbry-sync-ytdl --publish --channel="@MyAwesomeChannel" "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0`
 
 Will publish the content to @MyAwesomeChannel.
 
 It is **highly recommended** that you use the `--optimize-video` option when uploading videos:
 
-`lbry-sync-ytdl --publish --optimize-video --channel="@MyAwesomeChannel" https://www.youtube.com/watch?v=ZbJmQSuNcQ4 --bid=1.0`
+`lbry-sync-ytdl --publish --optimize-video --channel="@MyAwesomeChannel" "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0`
 
 But **do not use it** for audio files.
 
@@ -38,6 +38,7 @@ Go to the [releases page](https://gitlab.com/gardenappl/lbry-sync-ytdl/-/release
 
 * [youtube-dl](https://youtube-dl.org/)
 * [jq](https://stedolan.github.io/jq/)
+* the LBRY app (or a standalone "lbrynet" daemon)
 
 ## Notes
 
