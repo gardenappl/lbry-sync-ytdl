@@ -32,9 +32,15 @@ But **do not use it** for audio files.
 
 ## Installation
 
+### Arch Linux
+
+Users of Arch-based distos may use the "official" [AUR package](https://aur.archlinux.org/packages/lbry-sync-ytdl/).
+
+### Other UNIX
+
 Go to the [releases page](https://gitlab.com/gardenappl/lbry-sync-ytdl/-/releases) and grab the latest stable version from there. Simply download the archive, and put the script somewhere in your PATH.
 
-### Dependencies
+#### Dependencies
 
 * [youtube-dl](https://youtube-dl.org/)
 * [jq](https://stedolan.github.io/jq/)
