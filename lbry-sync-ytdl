@@ -3,8 +3,8 @@
 set -o errexit
 
 
-options=y:pb:l:c:hv
-longopts=ytdl-options:,publish,bid:,lbrynet-server:,channel:,validate-video,help,optimize-video,version
+options=y:pb:c:hv
+longopts=ytdl-options:,publish,bid:,channel:,validate-video,help,optimize-video,version
 parsed=$(getopt --options=$options --longoptions=$longopts --name "$0" -- "$@")
 eval set -- "$parsed"
 
@@ -42,10 +42,6 @@ while true; do
 			bid="$2"
 			shift 2
 			;;
-		-l|--lbrynet-server )
-			lbrynet_server="$2"
-			shift 2
-			;;
 		-- )
 			shift
 			break
@@ -64,7 +60,6 @@ print_help() {
 	-b, --bid 		Amount of LBC to deposit for each piece of content
 	-c, --channel 		Name of publisher channel (e.g. \"@MyCoolChannel\")
 	-h, --help 		Print help
-	-l, --lbrynet-server 	Custom URL to connect to LBRY daemon
 	    --optimize-video 	Use FFmpeg to transcode video, ensuring common web browser support
 	-p, --publish 		Actually publish content, rather than just printing info
 	    --validate-video 	Check if video needs to be transcoded for common web browser support, uses FFmpeg
@@ -84,7 +79,66 @@ elif [ -z "$1" ]; then
 fi
 
 
-lbrynet_server="${lbrynet_server:-http://localhost:5279/}"
+lbrynet_check_error() {
+	case "$1" in
+		\{* )
+			case "$1" in
+				*'"error": '* )
+					if message="$(echo "$1" | jq '.error.message' --exit-status --raw-output)"; then
+						echo "LBRY daemon reported an error."
+						echo "$message"
+						exit 1
+					else
+						echo "Unknown error in LBRY daemon."
+						echo "$1"
+						exit 1
+					fi
+			esac
+			;;
+		* )
+			echo "Unknown error in LBRY daemon."
+			echo "$1"
+			exit 1
+			;;
+	esac
+}
+
+is_running() {
+	case "$1" in
+		\{* )
+			#If starts with {, assume valid JSON
+			case "$1" in
+				*'"is_running": true'* )
+					return 0
+					;;
+			esac
+			;;
+	esac
+	return 1
+}
+
+lbrynet_start_if_needed() {
+	if ! pidof "lbrynet" > /dev/null; then
+		printf "Starting LBRY daemon... "
+		lbrynet start 2>/dev/null > /dev/null &
+		while sleep 0.5; do
+			lbrynet_status=$(lbrynet status)
+			if is_running "$lbrynet_status"; then
+				echo "Done."
+				break
+			fi
+		done
+	fi
+}
+
+get_local_lbrynet_config() {
+	lbrynet_config=$(lbrynet settings get)
+	lbrynet_check_error "$lbrynet_config"
+	api_server=$(json_value "$lbrynet_config" "api")
+}
+
+
+
 
 if [ -z "$upload" ]; then
 	echo "Note: operating in test mode. Content is not actually being published."
@@ -149,19 +203,13 @@ while read -r line; do
 	if [ -z "$upload" ]; then
 		echo "$data" | jq
 	else
-		result="$(curl --silent -d"{\"method\": \"publish\", \"params\": $data}" "$lbrynet_server")"
+		result="$(curl --silent -d"{\"method\": \"publish\", \"params\": $data}" "$api_server")"
 
 		#Print result
-		if message="$(echo "$result" | jq '.error.message' --exit-status --raw-output)"; then
-			echo "LBRY daemon reported an error."
-			echo "$message"
-			exit 1
-		elif url="$(echo "$result" | jq '.result.outputs | .[] | select(.type == "claim") | .permanent_url' --exit-status --raw-output)"; then
+		lbrynet_check_error "$result"
+
+		if url="$(echo "$result" | jq '.result.outputs | .[] | select(.type == "claim") | .permanent_url' --exit-status --raw-output)"; then
 			echo "Publishing as $url"
-		else
-			echo "Unknown error."
-			echo "$result"
-			exit 1
 		fi
 	fi
 done < "$info_file"
