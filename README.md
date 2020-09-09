@@ -38,6 +38,7 @@ Go to the [releases page](https://gitlab.com/gardenappl/lbry-sync-ytdl/-/release
 
 * [youtube-dl](https://youtube-dl.org/)
 * [jq](https://stedolan.github.io/jq/)
+* curl
 * the LBRY app (or a standalone "lbrynet" daemon)
 
 ## Notes
