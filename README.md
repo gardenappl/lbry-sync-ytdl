@@ -38,3 +38,10 @@ Go to the [releases page](https://gitlab.com/gardenappl/lbry-sync-ytdl/-/release
 
 * [youtube-dl](https://youtube-dl.org/)
 * [jq](https://stedolan.github.io/jq/)
+
+## Notes
+
+Keep in mind that there might be issues when uploading massive playlists (e.g. more than 50 videos). If you encounter errors during the process:
+
+1. If you succesfully published, say, 30 videos, you may resume the script by providing a youtube-dl option: `--ytdl-options="--playlist-start=30"`
+2. It's okay to publish the same video twice, the new one will override the old one. Though you may or may not waste some LBC in the process.
