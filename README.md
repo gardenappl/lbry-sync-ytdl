@@ -28,6 +28,8 @@ It is **highly recommended** that you use the `--optimize-video` option when upl
 
 But **do not use it** for audio files.
 
+**Run** `lbry-sync-ytdl --help` **for more info.**
+
 ## Installation
 
 Go to the [releases page](https://gitlab.com/gardenappl/lbry-sync-ytdl/-/releases) and grab the latest stable version from there. Simply download the archive, and put the script somewhere in your PATH.
