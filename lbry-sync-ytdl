@@ -1,6 +1,6 @@
 #!/bin/sh
 
-_lbry_sync_ytdl_version="v1.1.2"
+_lbry_sync_ytdl_version="v1.2"
 
 set -o errexit
 
@@ -230,7 +230,7 @@ while read -r line; do
 	fi
 done < "$info_file"
 
-if [ -n "$upload" ]; then
+if [ -n "$bid" ]; then
 	echo "Done. Please wait for a few minutes for claims to be processed by the network."
 else
 	echo "Done. Please verify that all the data is correct,"

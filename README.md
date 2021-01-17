@@ -20,19 +20,19 @@ Basic usage example:
 
 Will run the script *in test mode* and just show the information that youtube-dl managed to extract. Once you confirm that it's the right information, you can publish it with:
 
-`lbry-sync-ytdl --publish "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0`
+`lbry-sync-ytdl "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0`
 
 This will publish the content anonymously.
 
-`lbry-sync-ytdl --publish --channel="@MyAwesomeChannel" "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0`
+`lbry-sync-ytdl --channel="@MyAwesomeChannel" "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0`
 
 Will publish the content to @MyAwesomeChannel.
 
 It is **highly recommended** that you use the `--optimize-video` option when uploading videos:
 
-`lbry-sync-ytdl --publish --optimize-video --channel="@MyAwesomeChannel" "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0`
+`lbry-sync-ytdl --optimize-video --channel="@MyAwesomeChannel" "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0`
 
-But **do not use it** for audio files.
+But **do not use** that option for audio files.
 
 **Run** `lbry-sync-ytdl --help` **for more info.**
 
