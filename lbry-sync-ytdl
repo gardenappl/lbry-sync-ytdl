@@ -5,13 +5,17 @@ _lbry_sync_ytdl_version="v1.1.2"
 set -o errexit
 
 
-options=y:pb:c:hv
-longopts=ytdl-options:,publish,bid:,channel:,validate-video,help,optimize-video,version
+options=y:b:c:hva:p
+longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish
 parsed=$(getopt --options=$options --longoptions=$longopts --name "$0" -- "$@")
 eval set -- "$parsed"
 
 while true; do
 	case "$1" in
+		-a|--api )
+			api_server="$2"
+			shift 2
+			;;
 		-h|--help )
 			help=y
 			shift
@@ -36,10 +40,6 @@ while true; do
 			ytdl_options="$2"
 			shift 2
 			;;
-		-p|--publish )
-			upload=y
-			shift
-			;;
 		-b|--bid )
 			bid="$2"
 			shift 2
@@ -59,14 +59,20 @@ print_help() {
 	echo \
 "Usage: lbry-sync-ytdl URL [options...]
 
+	-a, --api 		URL for lbyrnet API (e.g. \"https://localhost:5279\")
 	-b, --bid 		Amount of LBC to deposit for each piece of content
 	-c, --channel 		Name of publisher channel (e.g. \"@MyCoolChannel\")
 	-h, --help 		Print help
 	    --optimize-video 	Use FFmpeg to transcode video, ensuring common web browser support
-	-p, --publish 		Actually publish content, rather than just printing info
 	    --validate-video 	Check if video needs to be transcoded for common web browser support, uses FFmpeg
 	-v, --version 		Print version and exit
-	-y, --ytdl-options 	Set custom options for youtube-dl (e.g. \"--playlist-start=10\")"
+	-y, --ytdl-options 	Set custom options for youtube-dl (e.g. \"--playlist-start=10\")
+
+If --bid is not provided, script will NOT publish anything, treat that as a test run.
+
+If --channel is not provided, script will publish content anonymously.
+
+If --api is not provided, script will use local LBRY installtion."
 }
 
 if [ -n "$help" ]; then
@@ -140,18 +146,19 @@ get_local_lbrynet_config() {
 }
 
 
-lbrynet_start_if_needed
-get_local_lbrynet_config
-
-
-if [ -z "$upload" ]; then
-	echo "Note: operating in test mode. Content is not actually being published."
-	echo "Use the --publish option when you're sure you're ready to upload."
+if [ -z "$api_server" ]; then
+	if lbrynet version > /dev/null 2>&1; then
+		lbrynet_start_if_needed
+		get_local_lbrynet_config
+	else
+		echo "Error: no access to 'lbrynet' executable, and no API URL provided" >&2
+		exit 1
+	fi
 fi
 
-if [ -n "$upload" ] && [ -z "$bid" ]; then
-	echo "Error: please specify LBC bid amount, using --bid parameter"
-	exit 1
+if [ -z "$bid" ]; then
+	echo "Note: operating in test mode. Content is not actually being published."
+	echo "Use the --bid option when you're sure you're ready to upload."
 fi
 
 if [ -n "$channel" ]; then
@@ -174,7 +181,7 @@ fi
 
 
 info_file="$(mktemp -t youtube-dl-info-XXXXXX.json)"
-trap "rm $info_file" EXIT
+trap 'rm $info_file' EXIT
 echo "Retrieving data with youtube-dl..."
 
 youtube-dl "$1" --merge-output-format=mp4 $ytdl_options --print-json > "$info_file"
@@ -182,9 +189,6 @@ youtube-dl "$1" --merge-output-format=mp4 $ytdl_options --print-json > "$info_fi
 # Read $info_file line by line: every line is a video file
 while read -r line; do
 	name="$(echo "$line" | jq '.title' --raw-output)"
-
-	echo
-	echo "Publishing \"$name\"..."
 
 	# get name in a format that can be used for LBRY URLs
 	publish_name="$(echo "$name" | tr '[:upper:] ' '[:lower:]-' | tr --delete --complement '0-9a-zA-Z[=-=]' | tr --squeeze-repeats '-')"
@@ -208,9 +212,13 @@ while read -r line; do
 		} | map_values(select(. != null))")"
 	# strip null values because lbrynet can't handle them
 
-	if [ -z "$upload" ]; then
+	echo
+
+	if [ -z "$bid" ]; then
+		echo "This content would've been published if you'd supplied the --bid amount:"
 		echo "$data" | jq
 	else
+		echo "Publishing \"$name\"..."
 		result="$(curl --silent -d"{\"method\": \"publish\", \"params\": $data}" "$api_server")"
 
 		#Print result
@@ -226,5 +234,5 @@ if [ -n "$upload" ]; then
 	echo "Done. Please wait for a few minutes for claims to be processed by the network."
 else
 	echo "Done. Please verify that all the data is correct,"
-	echo "then run the command again with the --publish option."
+	echo "then run the command again with the --bid option."
 fi
