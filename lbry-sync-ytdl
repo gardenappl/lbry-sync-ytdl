@@ -184,7 +184,14 @@ info_file="$(mktemp -t youtube-dl-info-XXXXXX.json)"
 trap 'rm $info_file' EXIT
 echo "Retrieving data with youtube-dl..."
 
-youtube-dl "$1" --merge-output-format=mp4 $ytdl_options --print-json > "$info_file"
+
+
+if ! youtube-dl "$1" --merge-output-format=mp4 $ytdl_options --print-json > "$info_file"; then
+	ytdl_error=y
+fi
+
+
+
 
 # Read $info_file line by line: every line is a video file
 while read -r line; do
@@ -235,4 +242,10 @@ if [ -n "$bid" ]; then
 else
 	echo "Done. Please verify that all the data is correct,"
 	echo "then run the command again with the --bid option."
+fi
+
+if [ -n "$ytdl_error" ]; then
+	printf "\033[31mWarning: youtube-dl had finished with an error!\033[0m\n"
+	echo "If you're uploading a playlist, this might mean that some videos were unavailable."
+	echo "Try running with '--ytdl-options \"--ignore-errors\"'."
 fi
