@@ -6,7 +6,7 @@ set -o errexit
 
 
 options=y:b:c:hva:p
-longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish
+longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail
 parsed=$(getopt --options=$options --longoptions=$longopts --name "$0" -- "$@")
 eval set -- "$parsed"
 
@@ -18,6 +18,10 @@ while true; do
 			;;
 		-h|--help )
 			help=y
+			shift
+			;;
+		--orig-thumbnail )
+			original_thumbnail=y
 			shift
 			;;
 		-v|--version )
@@ -64,6 +68,7 @@ print_help() {
 	-c, --channel 		Name of publisher channel (e.g. \"@MyCoolChannel\")
 	-h, --help 		Print help
 	    --optimize-video 	Use FFmpeg to transcode video, ensuring common web browser support
+	    --orig-thumbnail 	Use original thumbnail URL instead of re-uploading to LBRY/spee.ch
 	    --validate-video 	Check if video needs to be transcoded for common web browser support, uses FFmpeg
 	-v, --version 		Print version and exit
 	-y, --ytdl-options 	Set custom options for youtube-dl (e.g. \"--playlist-start=10\")
@@ -200,6 +205,20 @@ while read -r line; do
 	# get name in a format that can be used for LBRY URLs
 	publish_name="$(echo "$name" | tr '[:upper:] ' '[:lower:]-' | tr --delete --complement '0-9a-zA-Z[=-=]' | tr --squeeze-repeats '-')"
 
+	thumbnail_url="$(echo "$line" | jq '.thumbnail' --raw-output)"
+	if [ -z "$original_thumbnail" ]; then
+		echo "Downloading thumbnail: $thumbnail_url"
+
+		thumb_file="$(mktemp -t youtube-dl-thumb-XXXXXX)"
+		curl "$thumbnail_url" --output "$thumb_file" --silent
+
+		echo "Uploading thumbnail to spee.ch..."
+		speech_data="$(curl "https://spee.ch/api/claim/publish" --request POST -F "file=@$thumb_file" --silent)"
+		rm "$thumb_file"
+
+		thumbnail_url="$(echo "$speech_data" | jq '.data.serveUrl' --raw-output)"
+	fi
+
 	data="$(echo "$line" | jq \
 		"{
 			name: \"$publish_name\",
@@ -209,7 +228,7 @@ while read -r line; do
 			release_time: .timestamp,
 			author: .uploader,
 			title: .title,
-			thumbnail_url: .thumbnail,
+			thumbnail_url: \"$thumbnail_url\",
 			file_path: \"$PWD/\\(._filename)\",
 			bid: \"$bid\",
 			description: .description,
@@ -248,4 +267,5 @@ if [ -n "$ytdl_error" ]; then
 	printf "\033[31mWarning: youtube-dl had finished with an error!\033[0m\n"
 	echo "If you're uploading a playlist, this might mean that some videos were unavailable."
 	echo "Try running with '--ytdl-options \"--ignore-errors\"'."
+	exit 1
 fi
