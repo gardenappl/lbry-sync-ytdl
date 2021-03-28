@@ -55,9 +55,13 @@ Go to the [releases page](https://gitlab.com/gardenappl/lbry-sync-ytdl/-/release
 
 ## Known issues
 
-If you're using an older version of FFmpeg, some videos might fail to convert to .mp4. In that case, try using this option:
+If you're getting an error that looks like this:
 
-`lbry-sync-ytdl --ytdl-options '--postprocessor-args "-strict -2"' ...`
+`ERROR:   Stream #1:0 -> #0:1 (copy)`
+
+then you might be using an old version of FFmpeg. In that case, try using this option:
+
+`lbry-sync-ytdl --postprocessor-args "-strict -2" ...`
 
 ## Notes
 

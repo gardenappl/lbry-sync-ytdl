@@ -6,7 +6,7 @@ set -o errexit
 
 
 options=y:b:c:hva:p
-longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail
+longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:
 parsed=$(getopt --options=$options --longoptions=$longopts --name "$0" -- "$@")
 eval set -- "$parsed"
 
@@ -44,6 +44,10 @@ while true; do
 			ytdl_options="$2"
 			shift 2
 			;;
+		--postprocessor-args )
+			postprocess_args="$2"
+			shift 2
+			;;
 		-b|--bid )
 			bid="$2"
 			shift 2
@@ -63,15 +67,16 @@ print_help() {
 	echo \
 "Usage: lbry-sync-ytdl URL [options...]
 
-	-a, --api 		URL for lbyrnet API (e.g. \"https://localhost:5279\")
-	-b, --bid 		Amount of LBC to deposit for each piece of content
-	-c, --channel 		Name of publisher channel (e.g. \"@MyCoolChannel\")
-	-h, --help 		Print help
-	    --optimize-video 	Use FFmpeg to transcode video, ensuring common web browser support
-	    --orig-thumbnail 	Use original thumbnail URL instead of re-uploading to LBRY/spee.ch
-	    --validate-video 	Check if video needs to be transcoded for common web browser support, uses FFmpeg
-	-v, --version 		Print version and exit
-	-y, --ytdl-options 	Set custom options for youtube-dl (e.g. \"--playlist-start=10\")
+	-a, --api 			URL for lbyrnet API (e.g. \"https://localhost:5279\")
+	-b, --bid 			Amount of LBC to deposit for each piece of content
+	-c, --channel 			Name of publisher channel (e.g. \"@MyCoolChannel\")
+	-h, --help 			Print help
+	    --optimize-video 		Use FFmpeg to transcode video, ensuring common web browser support
+	    --orig-thumbnail 		Use original thumbnail URL instead of re-uploading to LBRY/spee.ch
+	    --postprocessor-args 	Set custom options for youtube-dl postprocessor (e.g. \"-strict -2\")
+	    --validate-video 		Check if video needs to be transcoded for common web browser support, uses FFmpeg
+	-v, --version 			Print version and exit
+	-y, --ytdl-options 		Set custom options for youtube-dl (e.g. \"--playlist-start=10\")
 
 If --bid is not provided, script will NOT publish anything, treat that as a test run.
 
@@ -191,7 +196,7 @@ echo "Retrieving data with youtube-dl..."
 
 
 
-if ! youtube-dl "$1" --merge-output-format=mp4 $ytdl_options --print-json > "$info_file"; then
+if ! youtube-dl "$1" --postprocessor-args "$postprocess_args" --merge-output-format=mp4 $ytdl_options --print-json > "$info_file"; then
 	ytdl_error=y
 fi
 
