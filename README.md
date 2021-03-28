@@ -63,6 +63,8 @@ then you might be using an old version of FFmpeg. In that case, try using this o
 
 `lbry-sync-ytdl --postprocessor-args "-strict -2" ...`
 
+See [issue #4](https://gitlab.com/gardenappl/lbry-sync-ytdl/-/issues/4) for more details.
+
 ## Notes
 
 Keep in mind that there might be issues when uploading massive playlists (e.g. more than 50 videos). If you encounter errors during the process:
