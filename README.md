@@ -53,6 +53,12 @@ Go to the [releases page](https://gitlab.com/gardenappl/lbry-sync-ytdl/-/release
 * curl
 * the LBRY app (or a standalone "lbrynet" daemon)
 
+## Known issues
+
+If you're using an older version of FFmpeg, some videos might fail to convert to .mp4. In that case, try using this option:
+
+`lbry-sync-ytdl --ytdl-options '--postprocessor-args "-strict -2"' ...`
+
 ## Notes
 
 Keep in mind that there might be issues when uploading massive playlists (e.g. more than 50 videos). If you encounter errors during the process:
