@@ -230,7 +230,9 @@ while read -r line; do
 			channel_name: $channel,
 			tags: .tags,
 			license: .license,
-			release_time: .timestamp,
+			release_time: (.release_timestamp // .timestamp //
+				try ((.release_date // .upload_date) | strptime(\"%Y%m%d\") | mktime) catch null
+			),
 			author: .uploader,
 			title: .title,
 			thumbnail_url: \"$thumbnail_url\",
