@@ -28,12 +28,6 @@ This will publish the content anonymously.
 
 Will publish the content to @MyAwesomeChannel.
 
-It is **highly recommended** that you use the `--optimize-video` option when uploading videos:
-
-`lbry-sync-ytdl --optimize-video --channel="@MyAwesomeChannel" "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0`
-
-But **do not use** that option for audio files.
-
 **Run** `lbry-sync-ytdl --help` **for more info.**
 
 ## Installation
