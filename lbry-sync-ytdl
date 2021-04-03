@@ -5,8 +5,8 @@ _lbry_sync_ytdl_version="v1.4"
 set -o errexit
 
 
-options=y:b:c:hva:p
-longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:
+options=y:b:c:hva:pn
+longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:,no-optimize-video
 parsed=$(getopt --options=$options --longoptions=$longopts --name "$0" -- "$@")
 eval set -- "$parsed"
 
@@ -28,12 +28,16 @@ while true; do
 			version=y
 			shift
 			;;
+		--no-optimize-video )
+			no_optimize=y
+			shift
+			;;
 		--optimize-video )
-			optimize=y
+			echo "Warning: --optimize-video option is deprecated, this script automatically applies this option to eery file which is not audio. Use --no-optimize-video to cancel."
 			shift
 			;;
 		--validate-video )
-			validate=y
+			echo "Warning: --validate-video option is deprecated, this script automatically optimizes every file which is not audio. Use --no-optimize-video to cancel."
 			shift
 			;;
 		-c|--channel )
@@ -71,10 +75,9 @@ print_help() {
 	-b, --bid 			Amount of LBC to deposit for each piece of content
 	-c, --channel 			Name of publisher channel (e.g. \"@MyCoolChannel\")
 	-h, --help 			Print help
-	    --optimize-video 		Use FFmpeg to transcode video, ensuring common web browser support
+	    --no-optimize-video 	Upload video as-is, don't let LBRY transcode it (using FFmpeg)
 	    --orig-thumbnail 		Use original thumbnail URL instead of re-uploading to LBRY/spee.ch
 	    --postprocessor-args 	Set custom options for youtube-dl postprocessor (e.g. \"-strict -2\")
-	    --validate-video 		Check if video needs to be transcoded for common web browser support, uses FFmpeg
 	-v, --version 			Print version and exit
 	-y, --ytdl-options 		Set custom options for youtube-dl (e.g. \"--playlist-start=10\")
 
@@ -177,18 +180,6 @@ else
 	channel=null
 fi
 
-if [ -n "$validate" ]; then
-	validate_option=true
-else
-	validate_option=false
-fi
-
-if [ -n "$optimize" ]; then
-	optimize_option=true
-else
-	optimize_option=false
-fi
-
 
 info_file="$(mktemp -t youtube-dl-info-XXXXXX.json)"
 trap 'rm $info_file' EXIT
@@ -227,6 +218,10 @@ while read -r line; do
 		thumbnail_url="$(echo "$speech_data" | jq '.data.serveUrl' --raw-output)"
 	fi
 
+	if [ "$thumbnail_url" != 'null' ]; then
+		thumbnail_url="\"$thumbnail_url\""
+	fi
+
 	data="$(echo "$line" | jq \
 		"{
 			name: \"$publish_name\",
@@ -238,12 +233,11 @@ while read -r line; do
 			),
 			author: .uploader,
 			title: .title,
-			thumbnail_url: (if \"$thumbnail_url\" == \"null\" then null else \"$thumbnail_url\" end),
+			thumbnail_url: $thumbnail_url,
 			file_path: \"$PWD/\\(._filename)\",
 			bid: \"$bid\",
 			description: .description,
-			validate_file: $validate_option,
-			optimize_file: $optimize_option,
+			optimize_file: (.vcodec != \"none\"),
 			blocking: true
 		} | map_values(select(. != null))")"
 	# strip null values because lbrynet can't handle them
