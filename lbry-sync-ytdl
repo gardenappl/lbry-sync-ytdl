@@ -216,6 +216,7 @@ while read -r line; do
 		rm "$thumb_file"
 
 		thumbnail_url="$(echo "$speech_data" | jq '.data.serveUrl' --raw-output)"
+		echo "Uploaded as $thumbnail_url"
 	fi
 
 	if [ "$thumbnail_url" != 'null' ]; then
