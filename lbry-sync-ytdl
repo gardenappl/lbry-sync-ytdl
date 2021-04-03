@@ -210,8 +210,11 @@ while read -r line; do
 	# get name in a format that can be used for LBRY URLs
 	publish_name="$(echo "$name" | tr '[:upper:] ' '[:lower:]-' | tr --delete --complement '0-9a-zA-Z[=-=]' | tr --squeeze-repeats '-')"
 
-	thumbnail_url="$(echo "$line" | jq '.thumbnail' --raw-output)"
-	if [ -z "$original_thumbnail" ]; then
+	if ! thumbnail_url="$(echo "$line" | jq '.thumbnail' --raw-output --exit-status)"; then
+		printf "\033[31mWarning: no thumbnail!\033[0m\n"
+	elif [ -z "$bid" ]; then
+		echo "This is a test run, not uploading thumbnail..."
+	elif [ -z "$original_thumbnail" ]; then
 		echo "Downloading thumbnail: $thumbnail_url"
 
 		thumb_file="$(mktemp -t youtube-dl-thumb-XXXXXX)"
@@ -235,7 +238,7 @@ while read -r line; do
 			),
 			author: .uploader,
 			title: .title,
-			thumbnail_url: \"$thumbnail_url\",
+			thumbnail_url: (if \"$thumbnail_url\" == \"null\" then null else \"$thumbnail_url\" end),
 			file_path: \"$PWD/\\(._filename)\",
 			bid: \"$bid\",
 			description: .description,
