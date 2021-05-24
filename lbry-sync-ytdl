@@ -67,6 +67,7 @@ while true; do
 	esac
 done
 
+
 print_help() {
 	echo \
 "Usage: lbry-sync-ytdl URL [options...]
@@ -105,7 +106,7 @@ lbrynet_check_error() {
 		\{* )
 			case "$1" in
 				*'"error": '* )
-					if message="$(echo "$1" | jq '.error.message' --exit-status --raw-output)"; then
+					if message="$(printf '%s' "$1" | jq '.error.message' --exit-status --raw-output)"; then
 						echo "LBRY daemon reported an error."
 						echo "$message"
 						exit 1
@@ -155,7 +156,7 @@ lbrynet_start_if_needed() {
 get_local_lbrynet_config() {
 	lbrynet_config=$(lbrynet settings get)
 	lbrynet_check_error "$lbrynet_config"
-	api_server=$(echo "$lbrynet_config" | jq -r '.api')
+	api_server=$(printf '%s' "$lbrynet_config" | jq -r '.api')
 }
 
 
@@ -196,12 +197,12 @@ fi
 
 # Read $info_file line by line: every line is a video file
 while read -r line; do
-	name="$(echo "$line" | jq '.title' --raw-output)"
+	name="$(printf '%s' "$line" | jq '.title' --raw-output)"
 
 	# get name in a format that can be used for LBRY URLs
-	publish_name="$(echo "$name" | tr '[:upper:] ' '[:lower:]-' | tr --delete --complement '0-9a-zA-Z[=-=]' | tr --squeeze-repeats '-')"
+	publish_name="$(printf '%s' "$name" | tr '[:upper:] ' '[:lower:]-' | tr --delete --complement '0-9a-zA-Z[=-=]' | tr --squeeze-repeats '-')"
 
-	if ! thumbnail_url="$(echo "$line" | jq '.thumbnail' --raw-output --exit-status)"; then
+	if ! thumbnail_url="$(printf '%s' "$line" | jq '.thumbnail' --raw-output --exit-status)"; then
 		printf "\033[31mWarning: no thumbnail!\033[0m\n"
 	elif [ -z "$bid" ]; then
 		echo "This is a test run, not uploading thumbnail..."
@@ -215,7 +216,7 @@ while read -r line; do
 		speech_data="$(curl "https://spee.ch/api/claim/publish" --request POST -F "file=@$thumb_file" --silent)"
 		rm "$thumb_file"
 
-		thumbnail_url="$(echo "$speech_data" | jq '.data.serveUrl' --raw-output)"
+		thumbnail_url="$(printf '%s' "$speech_data" | jq '.data.serveUrl' --raw-output)"
 		echo "Uploaded as $thumbnail_url"
 	fi
 
@@ -223,7 +224,7 @@ while read -r line; do
 		thumbnail_url="\"$thumbnail_url\""
 	fi
 
-	data="$(echo "$line" | jq \
+	data="$(printf '%s' "$line" | jq \
 		"{
 			name: \"$publish_name\",
 			channel_name: $channel,
@@ -247,7 +248,7 @@ while read -r line; do
 
 	if [ -z "$bid" ]; then
 		echo "This content would've been published if you'd supplied the --bid amount:"
-		echo "$data" | jq
+		printf '%s' "$data" | jq
 	else
 		echo "Publishing \"$name\"..."
 		result="$(curl --silent -d"{\"method\": \"publish\", \"params\": $data}" "$api_server")"
@@ -255,7 +256,7 @@ while read -r line; do
 		#Print result
 		lbrynet_check_error "$result"
 
-		if url="$(echo "$result" | jq '.result.outputs | .[] | select(.type == "claim") | .permanent_url' --exit-status --raw-output)"; then
+		if url="$(printf '%s' "$result" | jq '.result.outputs | .[] | select(.type == "claim") | .permanent_url' --exit-status --raw-output)"; then
 			echo "Published as $url"
 		fi
 	fi
