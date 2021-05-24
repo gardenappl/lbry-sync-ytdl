@@ -238,7 +238,7 @@ while read -r line; do
 			file_path: \"$PWD/\\(._filename)\",
 			bid: \"$bid\",
 			description: .description,
-			optimize_file: (.vcodec != \"none\"),
+			optimize_file: ((.vcodec != \"none\") and (\"$no_optimize\" != \"y\")),
 			blocking: true
 		} | map_values(select(. != null))")"
 	# strip null values because lbrynet can't handle them
