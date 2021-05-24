@@ -5,8 +5,8 @@ _lbry_sync_ytdl_version="v1.5"
 set -o errexit
 
 
-options=y:b:c:hva:pn
-longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:,no-optimize-video
+options=y:b:c:hva:pnl:L:
+longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:,no-optimize-video,license:,language:
 parsed=$(getopt --options=$options --longoptions=$longopts --name "$0" -- "$@")
 eval set -- "$parsed"
 
@@ -54,6 +54,14 @@ while true; do
 			;;
 		-b|--bid )
 			bid="$2"
+			shift 2
+			;;
+		-l|--license )
+			license="$2"
+			shift 2
+			;;
+		-L|--language )
+			language="$2"
 			shift 2
 			;;
 		-- )
@@ -224,12 +232,25 @@ while read -r line; do
 		thumbnail_url="\"$thumbnail_url\""
 	fi
 
+	if [ -n "$license" ]; then
+		license="\"$license\""
+	else
+		license="null"
+	fi
+
+	if [ -n "$language" ]; then
+		language="\"$language\""
+	else
+		language="null"
+	fi
+
 	data="$(printf '%s' "$line" | jq \
 		"{
 			name: \"$publish_name\",
 			channel_name: $channel,
 			tags: .tags,
-			license: .license,
+			languages: ((.formats | map(.language) + [ $language ]) | map(select(. != null)) | unique),
+			license: ($license // .license),
 			release_time: (.release_timestamp // .timestamp //
 				try ((.release_date // .upload_date) | strptime(\"%Y%m%d\") | mktime) catch null
 			),
