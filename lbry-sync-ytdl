@@ -80,21 +80,21 @@ print_help() {
 	echo \
 "Usage: lbry-sync-ytdl URL [options...]
 
-	-a, --api 			URL for lbyrnet API (e.g. \"https://localhost:5279\")
+	-a, --api 			Custom URL for lbyrnet API (e.g. \"https://localhost:5279\")
 	-b, --bid 			Amount of LBC to deposit for each piece of content
 	-c, --channel 			Name of publisher channel (e.g. \"@MyCoolChannel\")
 	-h, --help 			Print help
-	    --no-optimize-video 	Upload video as-is, don't let LBRY transcode it (using FFmpeg)
+	-l, --license 			Add license information (overrides info from youtube-dl)
+	-L, --language 			Add language tag, like \"en\" or \"uk-UA\"
+	    --no-optimize-video 	Upload video as-is, don't let LBRY transcode it
 	    --orig-thumbnail 		Use original thumbnail URL instead of re-uploading to LBRY/spee.ch
-	    --postprocessor-args 	Set custom options for youtube-dl postprocessor (e.g. \"-strict -2\")
+	    --postprocessor-args 	Set custom options for youtube-dl postprocessor, usually FFmpeg (e.g. \"-strict -2\")
 	-v, --version 			Print version and exit
 	-y, --ytdl-options 		Set custom options for youtube-dl (e.g. \"--playlist-start=10\")
 
 If --bid is not provided, script will NOT publish anything, treat that as a test run.
 
-If --channel is not provided, script will publish content anonymously.
-
-If --api is not provided, script will use local LBRY installtion."
+If --channel is not provided, script will publish content anonymously."
 }
 
 if [ -n "$help" ]; then
