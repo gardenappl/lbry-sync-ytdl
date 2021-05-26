@@ -5,8 +5,8 @@ _lbry_sync_ytdl_version="v1.6"
 set -o errexit
 
 
-options=y:b:c:hva:pnl:L:
-longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:,no-optimize-video,license:,language:
+options=y:b:c:hva:pnl:L:o
+longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:,no-optimize-video,license:,language:,override
 parsed=$(getopt --options=$options --longoptions=$longopts --name "$0" -- "$@")
 eval set -- "$parsed"
 
@@ -64,6 +64,10 @@ while true; do
 			language="$2"
 			shift 2
 			;;
+		-o|--override )
+			override=y
+			shift
+			;;
 		-- )
 			shift
 			break
@@ -88,6 +92,7 @@ print_help() {
 	-L, --language 			Add language tag, like \"en\" or \"uk-UA\"
 	    --no-optimize-video 	Upload video as-is, don't let LBRY transcode it
 	    --orig-thumbnail 		Use original thumbnail URL instead of re-uploading to LBRY/spee.ch
+	-o, --override 			Upload content even if a file with the same name exists on LBRY
 	    --postprocessor-args 	Set custom options for youtube-dl postprocessor, usually FFmpeg (e.g. \"-strict -2\")
 	-v, --version 			Print version and exit
 	-y, --ytdl-options 		Set custom options for youtube-dl (e.g. \"--playlist-start=10\")
@@ -190,27 +195,54 @@ else
 fi
 
 
-info_file="$(mktemp -t youtube-dl-info-XXXXXX.json)"
-trap 'rm $info_file' EXIT
-echo "Retrieving data with youtube-dl..."
+info_dir="$(mktemp --directory lbry-sync-ytdl-info-XXXXXX)"
+download_info_file="$(mktemp lbry-sync-ytdl-download-info-XXXXXX.json)"
+mkfifo "$info_dir/fifo"
+trap 'rm -r "$info_dir" && rm "$download_info_file"' EXIT
 
 
 
-if ! youtube-dl "$1" --postprocessor-args "$postprocess_args" --merge-output-format=mp4 $ytdl_options --print-json > "$info_file"; then
-	ytdl_error=y
-fi
+youtube-dl "$1" --dump-json > "$info_dir/fifo" &
 
 
-
-
-# Read $info_file line by line: every line is a video file
+# Read $info_dir/fifo line by line: every line is a video file
 while read -r line; do
+	echo
 	name="$(printf '%s' "$line" | jq '.title' --raw-output)"
 
 	# get name in a format that can be used for LBRY URLs
 	publish_name="$(printf '%s' "$name" | tr '[:upper:] ' '[:lower:]-' | tr --delete --complement '0-9a-zA-Z[=-=]' | tr --squeeze-repeats '-')"
 
-	if ! thumbnail_url="$(printf '%s' "$line" | jq '.thumbnail' --raw-output --exit-status)"; then
+	result="$(curl --silent -d"{\"method\": \"get\", \"params\": {\"uri\": \"$publish_name\"}}" "$api_server")"
+
+	# Try to find already existing LBRY upload with the same name
+	if [ -z "$override" ]; then
+		not_found=n
+		if printf '%s' "$result" | jq '.result.error' --exit-status > /dev/null; then
+			case "$result" in
+				*'"error": "Failed to resolve'* )
+					not_found=y
+					;;
+			esac
+		fi
+		if [ "$not_found" = n ]; then
+			echo "Skipping $name"
+			echo "Already published: $publish_name"
+			skipped=y
+			continue
+		fi
+	fi
+
+
+	url="$(printf '%s' "$line" | jq .webpage_url --raw-output)"
+	echo "Downloading $name... $url"
+
+	if ! youtube-dl "$url" --postprocessor-args "$postprocess_args" --merge-output-format=mp4 $ytdl_options --print-json > "$download_info_file"; then
+		ytdl_error=y
+		continue
+	fi
+
+	if ! thumbnail_url="$(jq '.thumbnail' --raw-output --exit-status < "$download_info_file")"; then
 		printf "\033[31mWarning: no thumbnail!\033[0m\n"
 	elif [ -z "$bid" ]; then
 		echo "This is a test run, not uploading thumbnail..."
@@ -233,24 +265,24 @@ while read -r line; do
 	fi
 
 	if [ -n "$license" ]; then
-		license="\"$license\""
+		upload_license="\"$license\""
 	else
-		license="null"
+		upload_license="null"
 	fi
 
 	if [ -n "$language" ]; then
-		language="\"$language\""
+		upload_language="\"$language\""
 	else
-		language="null"
+		upload_language="null"
 	fi
 
-	data="$(printf '%s' "$line" | jq \
+	data="$(jq \
 		"{
 			name: \"$publish_name\",
 			channel_name: $channel,
 			tags: .tags,
-			languages: ((.formats | map(.language) + [ $language ]) | map(select(. != null)) | unique),
-			license: ($license // .license),
+			languages: ((.formats | map(.language) + [ $upload_language ]) | map(select(. != null)) | unique),
+			license: ($upload_license // .license),
 			release_time: (.release_timestamp // .timestamp //
 				try ((.release_date // .upload_date) | strptime(\"%Y%m%d\") | mktime) catch null
 			),
@@ -262,10 +294,8 @@ while read -r line; do
 			description: .description,
 			optimize_file: ((.vcodec != \"none\") and (\"$no_optimize\" != \"y\")),
 			blocking: true
-		} | map_values(select(. != null))")"
+		} | map_values(select(. != null))" < "$download_info_file")"
 	# strip null values because lbrynet can't handle them
-
-	echo
 
 	if [ -z "$bid" ]; then
 		echo "This content would've been published if you'd supplied the --bid amount:"
@@ -281,7 +311,7 @@ while read -r line; do
 			echo "Published as $url"
 		fi
 	fi
-done < "$info_file"
+done < "$info_dir/fifo"
 
 if [ -n "$bid" ]; then
 	echo "Done. Please wait for a few minutes for claims to be processed by the network."
@@ -290,9 +320,15 @@ else
 	echo "then run the command again with the --bid option."
 fi
 
+if [ -n "$skipped" ]; then
+       printf "\n\033[31mWarning: some videos got skipped!\033[0m\n"
+       echo "Some videos were skipped automatically because a video with the exact same upload name already exists on LBRY."
+       echo "Use --override option to upload them."
+       exit 1
+fi
+
 if [ -n "$ytdl_error" ]; then
-	printf "\033[31mWarning: youtube-dl had finished with an error!\033[0m\n"
-	echo "If you're uploading a playlist, this might mean that some videos were unavailable."
-	echo "Try running with '--ytdl-options \"--ignore-errors\"'."
-	exit 1
+       printf "\n\033[31mWarning: youtube-dl had finished with an error!\033[0m\n"
+       echo "If you're uploading a playlist, this might mean that some videos were unavailable."
+       exit 1
 fi
