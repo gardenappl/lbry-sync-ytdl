@@ -1,12 +1,12 @@
 #!/bin/sh
 
-_lbry_sync_ytdl_version="v1.7"
+_lbry_sync_ytdl_version="v1.7.1"
 
 set -o errexit
 
 
 options=y:b:c:hva:pnl:L:o
-longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:,no-optimize-video,license:,language:,override
+longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:,no-optimize-video,license:,language:,overwrite
 parsed=$(getopt --options=$options --longoptions=$longopts --name "$0" -- "$@")
 eval set -- "$parsed"
 
@@ -64,8 +64,8 @@ while true; do
 			language="$2"
 			shift 2
 			;;
-		-o|--override )
-			override=y
+		-o|--overwrite )
+			overwrite=y
 			shift
 			;;
 		-- )
@@ -92,7 +92,7 @@ print_help() {
 	-L, --language 			Add language tag, like \"en\" or \"uk-UA\"
 	    --no-optimize-video 	Upload video as-is, don't let LBRY transcode it
 	    --orig-thumbnail 		Use original thumbnail URL instead of re-uploading to LBRY/spee.ch
-	-o, --override 			Upload content even if a file with the same name exists on LBRY
+	-o, --overwrite 		Upload content even if a file with the same name exists on LBRY
 	    --postprocessor-args 	Set custom options for youtube-dl postprocessor, usually FFmpeg (e.g. \"-strict -2\")
 	-v, --version 			Print version and exit
 	-y, --ytdl-options 		Set custom options for youtube-dl (e.g. \"--playlist-start=10\")
@@ -216,7 +216,7 @@ while read -r line; do
 	result="$(curl --silent -d"{\"method\": \"get\", \"params\": {\"uri\": \"$publish_name\"}}" "$api_server")"
 
 	# Try to find already existing LBRY upload with the same name
-	if [ -z "$override" ]; then
+	if [ -z "$overwrite" ]; then
 		not_found=n
 		if printf '%s' "$result" | jq '.result.error' --exit-status > /dev/null; then
 			case "$result" in
@@ -323,7 +323,7 @@ fi
 if [ -n "$skipped" ]; then
        printf "\n\033[31mWarning: some videos got skipped!\033[0m\n"
        echo "Some videos were skipped automatically because a video with the exact same upload name already exists on LBRY."
-       echo "Use --override option to upload them."
+       echo "Use --overwrite option to upload them."
        exit 1
 fi
 
