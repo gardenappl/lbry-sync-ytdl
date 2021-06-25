@@ -422,7 +422,17 @@ check_exists() {
 }
 
 
-youtube-dl "$1" --dump-json > "$info_dir/fifo" &
+
+if type yt-dl > /dev/null; then
+	print_info "Using yt-dlp"
+	ytdl="yt-dlp --compat-options youtube-dl"
+else
+	print_info "Using youtube-dl"
+	ytdl="youtube-dl"
+fi
+
+
+$ytdl "$1" --dump-json > "$info_dir/fifo" &
 
 
 # Read $info_dir/fifo line by line: every line is a video file
@@ -456,7 +466,7 @@ publish() {
 
 	print_info "Downloading $name... $url"
 
-	if ! youtube-dl "$url" --postprocessor-args "$postprocess_args" --merge-output-format=mp4 $ytdl_options --print-json > "$download_info_file"; then
+	if ! $ytdl "$url" --postprocessor-args "$postprocess_args" --merge-output-format=mp4 $ytdl_options --print-json > "$download_info_file"; then
 		ytdl_error=y
 		return 1
 	fi
