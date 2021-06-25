@@ -44,6 +44,11 @@ Use I<bid> as bid.
 Publish to channel I<channel>.
 
 
+=item B<--dry-run>
+
+Don't publish anything; print out URL if a a file with the same name does not exist on LBRY.
+
+
 =item B<-h>
 
 =item B<--help>
@@ -177,7 +182,7 @@ set -o errexit
 
 
 options=y:b:c:hva:pnl:L:oqQ
-longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:,no-optimize-video,license:,language:,overwrite,quiet,really-quiet
+longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:,no-optimize-video,license:,language:,overwrite,quiet,really-quiet,dry-run
 parsed=$(getopt --options=$options --longoptions=$longopts --name "$0" -- "$@")
 eval set -- "$parsed"
 
@@ -246,6 +251,10 @@ while true; do
 		-Q|--really-quiet )
 			quiet_info=y
 			quiet_error=y
+			shift
+			;;
+		--dry-run )
+			dry_run=y
 			shift
 			;;
 		-- )
@@ -378,7 +387,11 @@ if [ -z "$api_server" ]; then
 	fi
 fi
 
-if [ -z "$bid" ]; then
+if [ -z "$bid" ] && [ -z "$dry_run" ]; then
+	publishing_test=y
+fi
+
+if [ -n "$publishing_test" ]; then
 	print_info "Note: operating in test mode. Content is not actually being published."
 	print_info "Use the --bid option when you're sure you're ready to upload."
 fi
@@ -397,6 +410,25 @@ trap 'rm -r "$info_dir" && rm "$download_info_file"' EXIT
 
 
 
+# Try to find already existing LBRY upload with this name
+check_exists() {
+	result="$(curl --silent -d"{\"method\": \"get\", \"params\": {\"uri\": \"$1\"}}" "$api_server")"
+
+	not_found=n
+	if printf '%s' "$result" | jq '.result.error' --exit-status > /dev/null; then
+		case "$result" in
+			*'"error": "Failed to resolve'* )
+				not_found=y
+				;;
+		esac
+	fi
+	if [ "$not_found" = y ]; then
+		return 1
+	fi
+}
+
+
+
 youtube-dl "$1" --dump-json > "$info_dir/fifo" &
 
 
@@ -405,31 +437,27 @@ youtube-dl "$1" --dump-json > "$info_dir/fifo" &
 publish() {
 	name="$(printf '%s' "$line" | jq '.title' --raw-output)"
 
+
 	# get name in a format that can be used for LBRY URLs
 	publish_name="$(printf '%s' "$name" | tr '[:upper:] ' '[:lower:]-' | tr --delete --complement '0-9a-zA-Z[=-=]' | tr --squeeze-repeats '-')"
+	url="$(printf '%s' "$line" | jq .webpage_url --raw-output)"
 
-	result="$(curl --silent -d"{\"method\": \"get\", \"params\": {\"uri\": \"$publish_name\"}}" "$api_server")"
 
-	# Try to find already existing LBRY upload with the same name
-	if [ -z "$overwrite" ]; then
-		not_found=n
-		if printf '%s' "$result" | jq '.result.error' --exit-status > /dev/null; then
-			case "$result" in
-				*'"error": "Failed to resolve'* )
-					not_found=y
-					;;
-			esac
-		fi
-		if [ "$not_found" = n ]; then
-			print_info "Skipping $name"
-			print_info "Already published: $publish_name"
-			skipped=y
-			return
-		fi
+	if [ -n "$dry_run" ]; then
+		check_exists "$publish_name" || echo "$url"
+		return
+	fi
+
+	print_info
+
+	if [ -z "$overwrite" ] && check_exists "$publish_name"; then
+		print_info "Skipping $name"
+		print_info "Already published: $publish_name"
+		skipped=y
+		return
 	fi
 
 
-	url="$(printf '%s' "$line" | jq .webpage_url --raw-output)"
 	print_info "Downloading $name... $url"
 
 	if ! youtube-dl "$url" --postprocessor-args "$postprocess_args" --merge-output-format=mp4 $ytdl_options --print-json > "$download_info_file"; then
@@ -511,7 +539,6 @@ publish() {
 
 while read -r line; do
 	for i in 1 2 3; do
-		print_info
 		if publish "$line"; then
 			break;
 		elif [ "$i" -lt 3 ]; then
@@ -532,7 +559,7 @@ done < "$info_dir/fifo"
 
 if [ -n "$bid" ]; then
 	print_info "Done. Please wait for a few minutes for claims to be processed by the network."
-else
+elif [ -n "$publishing_test" ]; then
 	print_info "Done. Please verify that all the data is correct,"
 	print_info "then run the command again with the --bid option."
 fi
