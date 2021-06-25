@@ -46,7 +46,7 @@ Publish to channel I<channel>.
 
 =item B<--dry-run>
 
-Don't publish anything; print out URL if a a file with the same name does not exist on LBRY.
+Don't publish anything; print out URL if a file with the same name does not exist on LBRY.
 
 
 =item B<-h>
@@ -289,6 +289,7 @@ print_help() {
 	-a, --api 			Custom URL for lbyrnet API (e.g. \"https://localhost:5279\")
 	-b, --bid 			Amount of LBC to deposit for each piece of content
 	-c, --channel 			Name of publisher channel (e.g. \"@MyCoolChannel\")
+	    --dry-run 			Don't publish anything; print out URL if a file with the same name does not exist on LBRY.
 	-h, --help 			Print help
 	-l, --license 			Add license information (overrides info from youtube-dl)
 	-L, --language 			Add language tag, like \"en\" or \"uk-UA\"
@@ -419,7 +420,6 @@ check_exists() {
 		return 1
 	fi
 }
-
 
 
 youtube-dl "$1" --dump-json > "$info_dir/fifo" &
