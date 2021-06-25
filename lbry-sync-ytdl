@@ -397,12 +397,6 @@ if [ -n "$publishing_test" ]; then
 	print_info "Use the --bid option when you're sure you're ready to upload."
 fi
 
-if [ -n "$channel" ]; then
-	channel="\"$channel\""
-else
-	channel=null
-fi
-
 
 info_dir="$(mktemp --directory -t lbry-sync-ytdl-info-XXXXXX)"
 download_info_file="$(mktemp -t lbry-sync-ytdl-download-info-XXXXXX.json)"
@@ -411,7 +405,7 @@ trap 'rm -r "$info_dir" && rm "$download_info_file"' EXIT
 
 
 
-# Try to find already existing LBRY upload with this name
+# Try to find already existing LBRY upload with this LBRY URL
 check_exists() {
 	result="$(curl --silent -d"{\"method\": \"resolve\", \"params\": {\"urls\": [\"$1\"]}}" "$api_server")"
 
@@ -424,10 +418,8 @@ check_exists() {
 
 
 if type yt-dl > /dev/null; then
-	print_info "Using yt-dlp"
 	ytdl="yt-dlp --compat-options youtube-dl"
 else
-	print_info "Using youtube-dl"
 	ytdl="youtube-dl"
 fi
 
@@ -445,17 +437,23 @@ publish() {
 	publish_name="$(printf '%s' "$name" | tr '[:upper:] ' '[:lower:]-' | tr --delete --complement '0-9a-zA-Z[=-=]' | tr --squeeze-repeats '-')"
 	url="$(printf '%s' "$line" | jq .webpage_url --raw-output)"
 
+	if [ -n "$channel" ]; then
+		lbry_url="$channel/$publish_name"
+	else
+		lbry_url="$publish_name"
+	fi
+
 
 	if [ -n "$dry_run" ]; then
-		check_exists "$publish_name" || echo "$url"
+		check_exists "$lbry_url" || echo "$url"
 		return
 	fi
 
 	print_info
 
 	if [ -z "$overwrite" ]; then 
-		print_info "Checking if $publish_name is already published..."
-		if check_exists "$publish_name"; then
+		print_info "Checking if $lbry_url is already published..."
+		if check_exists "$lbry_url"; then
 			print_info "Skipping $name"
 			print_info "Already published: $publish_name"
 			skipped=y
@@ -496,19 +494,25 @@ publish() {
 	if [ -n "$license" ]; then
 		upload_license="\"$license\""
 	else
-		upload_license="null"
+		upload_license='null'
 	fi
 
 	if [ -n "$language" ]; then
 		upload_language="\"$language\""
 	else
-		upload_language="null"
+		upload_language='null'
+	fi
+
+	if [ -n "$channel" ]; then
+		upload_channel="\"$channel\""
+	else
+		upload_channel='null'
 	fi
 
 	data="$(jq \
 		"{
 			name: \"$publish_name\",
-			channel_name: $channel,
+			channel_name: $upload_channel,
 			tags: .tags,
 			languages: ((.formats | map(.language) + [ $upload_language ]) | map(select(. != null)) | unique),
 			license: ($upload_license // .license),
