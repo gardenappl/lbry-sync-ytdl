@@ -9,7 +9,7 @@ all:
 install:
 	install -d "${DESTDIR}${BINDIR}"
 	install -m 755 lbry-sync-ytdl "${DESTDIR}${BINDIR}"
-	install -d "${DESTDIR}${MANDIR}"
+	install -d "${DESTDIR}${MANDIR}/man1"
 	install -m 644 lbry-sync-ytdl.1 "${DESTDIR}${MANDIR}/man1"
 
 uninstall:
