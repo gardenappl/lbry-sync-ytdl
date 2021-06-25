@@ -403,8 +403,8 @@ else
 fi
 
 
-info_dir="$(mktemp --directory lbry-sync-ytdl-info-XXXXXX)"
-download_info_file="$(mktemp lbry-sync-ytdl-download-info-XXXXXX.json)"
+info_dir="$(mktemp --directory -t lbry-sync-ytdl-info-XXXXXX)"
+download_info_file="$(mktemp -t lbry-sync-ytdl-download-info-XXXXXX.json)"
 mkfifo "$info_dir/fifo"
 trap 'rm -r "$info_dir" && rm "$download_info_file"' EXIT
 
