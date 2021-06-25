@@ -1,2 +1,2 @@
 all:
-	pod2man lbry-sync-ytdl > lbry-sync-ytdl.1
+	pod2man lbry-sync-ytdl --center="General Commands Manual" > lbry-sync-ytdl.1
