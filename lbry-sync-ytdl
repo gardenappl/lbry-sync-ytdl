@@ -317,18 +317,18 @@ lbrynet_check_error() {
 					if message="$(printf '%s' "$1" | jq '.error.message' --exit-status --raw-output)"; then
 						print_error "LBRY daemon reported an error."
 						print_error "$message"
-						exit 1
+						return 1
 					else
 						print_error "Unknown error in LBRY daemon."
 						print_error "$1"
-						exit 1
+						return 1
 					fi
 			esac
 			;;
 		* )
 			print_error "Unknown error in LBRY daemon."
 			print_error "$1"
-			exit 1
+			return 1
 			;;
 	esac
 }
@@ -363,7 +363,7 @@ lbrynet_start_if_needed() {
 
 get_local_lbrynet_config() {
 	lbrynet_config=$(lbrynet settings get)
-	lbrynet_check_error "$lbrynet_config"
+	lbrynet_check_error "$lbrynet_config" || exit 1
 	api_server=$(printf '%s' "$lbrynet_config" | jq -r '.api')
 }
 
@@ -401,8 +401,8 @@ youtube-dl "$1" --dump-json > "$info_dir/fifo" &
 
 
 # Read $info_dir/fifo line by line: every line is a video file
-while read -r line; do
-	print_info
+
+publish() {
 	name="$(printf '%s' "$line" | jq '.title' --raw-output)"
 
 	# get name in a format that can be used for LBRY URLs
@@ -424,7 +424,7 @@ while read -r line; do
 			print_info "Skipping $name"
 			print_info "Already published: $publish_name"
 			skipped=y
-			continue
+			return
 		fi
 	fi
 
@@ -434,7 +434,7 @@ while read -r line; do
 
 	if ! youtube-dl "$url" --postprocessor-args "$postprocess_args" --merge-output-format=mp4 $ytdl_options --print-json > "$download_info_file"; then
 		ytdl_error=y
-		continue
+		return 1
 	fi
 
 	if ! thumbnail_url="$(jq '.thumbnail' --raw-output --exit-status < "$download_info_file")"; then
@@ -500,13 +500,35 @@ while read -r line; do
 		result="$(curl --silent -d"{\"method\": \"publish\", \"params\": $data}" "$api_server")"
 
 		#Print result
-		lbrynet_check_error "$result"
+		lbrynet_check_error "$result" || return 1
 
 		if url="$(printf '%s' "$result" | jq '.result.outputs | .[] | select(.type == "claim") | .permanent_url' --exit-status --raw-output)"; then
 			print_info "Published as $url"
 		fi
 	fi
+}
+
+
+while read -r line; do
+	for i in 1 2 3; do
+		print_info
+		if publish "$line"; then
+			break;
+		elif [ "$i" -lt 3 ]; then
+			print_info "Failed to publish, wait a second..."
+			sleep 1
+			print_info "Attempt number $((i + 1))..."
+		else
+			print_info "Failed to publish file."
+			if [ -n "$ytdl_error" ]; then
+				print_info "If you're uploading a playlist, this might mean that some videos were unavailable."
+			fi
+			exit 1
+		fi
+	done
 done < "$info_dir/fifo"
+
+
 
 if [ -n "$bid" ]; then
 	print_info "Done. Please wait for a few minutes for claims to be processed by the network."
@@ -519,13 +541,6 @@ if [ -n "$skipped" ]; then
        print_info "\n\033[31mWarning: some videos got skipped!\033[0m"
        print_info "Some videos were skipped automatically because a video with the exact same upload name already exists on LBRY."
        print_info "Use --overwrite option to upload them."
-       exit 1
-fi
-
-if [ -n "$ytdl_error" ]; then
-       print_info "\n\033[31mWarning: youtube-dl had finished with an error!\033[0m\n"
-       print_info "If you're uploading a playlist, this might mean that some videos were unavailable."
-       exit 1
 fi
 
 # Local Variables:
