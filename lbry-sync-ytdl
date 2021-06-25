@@ -84,6 +84,20 @@ Overwrite claim.
 Use original thumbnail.
 
 
+=item B<-q>
+
+=item B<--quiet>
+
+No info output.
+
+
+=item B<-Q>
+
+=item B<--really-quiet>
+
+No info or error output.
+
+
 =item B<--postprocessor-args> I<args>
 
 Use I<args> for postprocessing.
@@ -162,8 +176,8 @@ _lbry_sync_ytdl_version="v1.7.2"
 set -o errexit
 
 
-options=y:b:c:hva:pnl:L:o
-longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:,no-optimize-video,license:,language:,overwrite
+options=y:b:c:hva:pnl:L:oqQ
+longopts=ytdl-options:,bid:,channel:,validate-video,help,optimize-video,version,api:,publish,orig-thumbnail,postprocessor-args:,no-optimize-video,license:,language:,overwrite,quiet,really-quiet
 parsed=$(getopt --options=$options --longoptions=$longopts --name "$0" -- "$@")
 eval set -- "$parsed"
 
@@ -190,11 +204,11 @@ while true; do
 			shift
 			;;
 		--optimize-video )
-			echo "Warning: --optimize-video option is deprecated, this script automatically applies this option to eery file which is not audio. Use --no-optimize-video to cancel."
+			print_info "Warning: --optimize-video option is deprecated, this script automatically optimizes video files. Use --no-optimize-video to cancel."
 			shift
 			;;
 		--validate-video )
-			echo "Warning: --validate-video option is deprecated, this script automatically optimizes every file which is not audio. Use --no-optimize-video to cancel."
+			print_info "Warning: --validate-video option is deprecated, this script automatically optimizes video files. Use --no-optimize-video to cancel."
 			shift
 			;;
 		-c|--channel )
@@ -225,16 +239,38 @@ while true; do
 			overwrite=y
 			shift
 			;;
+		-q|--quiet )
+			quiet_info=y
+			shift
+			;;
+		-Q|--really-quiet )
+			quiet_info=y
+			quiet_error=y
+			shift
+			;;
 		-- )
 			shift
 			break
 			;;
 		* )
-			echo "Programming error: $1"
+			print_error "Programming error: $1"
 			exit 1
 			;;
 	esac
 done
+
+
+print_info() {
+	if [ -z "$quiet_info" ]; then
+		>&2 echo $@
+	fi
+}
+
+print_error() {
+	if [ -z "$quiet_error" ]; then
+		>&2 echo $@
+	fi
+}
 
 
 print_help() {
@@ -250,6 +286,8 @@ print_help() {
 	    --no-optimize-video 	Upload video as-is, don't let LBRY transcode it
 	    --orig-thumbnail 		Use original thumbnail URL instead of re-uploading to LBRY/spee.ch
 	-o, --overwrite 		Upload content even if a file with the same name exists on LBRY
+	-q, --quiet 			No info output
+	-Q, --really-quiet 		No info or error output
 	    --postprocessor-args 	Set custom options for youtube-dl postprocessor, usually FFmpeg (e.g. \"-strict -2\")
 	-v, --version 			Print version and exit
 	-y, --ytdl-options 		Set custom options for youtube-dl (e.g. \"--playlist-start=10\")
@@ -277,19 +315,19 @@ lbrynet_check_error() {
 			case "$1" in
 				*'"error": '* )
 					if message="$(printf '%s' "$1" | jq '.error.message' --exit-status --raw-output)"; then
-						echo "LBRY daemon reported an error."
-						echo "$message"
+						print_error "LBRY daemon reported an error."
+						print_error "$message"
 						exit 1
 					else
-						echo "Unknown error in LBRY daemon."
-						echo "$1"
+						print_error "Unknown error in LBRY daemon."
+						print_error "$1"
 						exit 1
 					fi
 			esac
 			;;
 		* )
-			echo "Unknown error in LBRY daemon."
-			echo "$1"
+			print_error "Unknown error in LBRY daemon."
+			print_error "$1"
 			exit 1
 			;;
 	esac
@@ -311,12 +349,12 @@ is_running() {
 
 lbrynet_start_if_needed() {
 	if ! pidof "lbrynet" > /dev/null; then
-		printf "Starting LBRY daemon... "
+		print_info "Starting LBRY daemon... "
 		lbrynet start 2>/dev/null > /dev/null &
 		while sleep 0.5; do
 			lbrynet_status=$(lbrynet status)
 			if is_running "$lbrynet_status"; then
-				echo "Done."
+				print_info "Done."
 				break
 			fi
 		done
@@ -335,14 +373,14 @@ if [ -z "$api_server" ]; then
 		lbrynet_start_if_needed
 		get_local_lbrynet_config
 	else
-		echo "Error: no access to 'lbrynet' executable, and no API URL provided" >&2
+		print_error "Error: no access to 'lbrynet' executable, and no API URL provided" >&2
 		exit 1
 	fi
 fi
 
 if [ -z "$bid" ]; then
-	echo "Note: operating in test mode. Content is not actually being published."
-	echo "Use the --bid option when you're sure you're ready to upload."
+	print_info "Note: operating in test mode. Content is not actually being published."
+	print_info "Use the --bid option when you're sure you're ready to upload."
 fi
 
 if [ -n "$channel" ]; then
@@ -364,7 +402,7 @@ youtube-dl "$1" --dump-json > "$info_dir/fifo" &
 
 # Read $info_dir/fifo line by line: every line is a video file
 while read -r line; do
-	echo
+	print_info
 	name="$(printf '%s' "$line" | jq '.title' --raw-output)"
 
 	# get name in a format that can be used for LBRY URLs
@@ -383,8 +421,8 @@ while read -r line; do
 			esac
 		fi
 		if [ "$not_found" = n ]; then
-			echo "Skipping $name"
-			echo "Already published: $publish_name"
+			print_info "Skipping $name"
+			print_info "Already published: $publish_name"
 			skipped=y
 			continue
 		fi
@@ -392,7 +430,7 @@ while read -r line; do
 
 
 	url="$(printf '%s' "$line" | jq .webpage_url --raw-output)"
-	echo "Downloading $name... $url"
+	print_info "Downloading $name... $url"
 
 	if ! youtube-dl "$url" --postprocessor-args "$postprocess_args" --merge-output-format=mp4 $ytdl_options --print-json > "$download_info_file"; then
 		ytdl_error=y
@@ -400,21 +438,21 @@ while read -r line; do
 	fi
 
 	if ! thumbnail_url="$(jq '.thumbnail' --raw-output --exit-status < "$download_info_file")"; then
-		printf "\033[31mWarning: no thumbnail!\033[0m\n"
+		print_info "\033[31mWarning: no thumbnail!\033[0m"
 	elif [ -z "$bid" ]; then
-		echo "This is a test run, not uploading thumbnail..."
+		print_info "This is a test run, not uploading thumbnail..."
 	elif [ -z "$original_thumbnail" ]; then
-		echo "Downloading thumbnail: $thumbnail_url"
+		print_info "Downloading thumbnail: $thumbnail_url"
 
 		thumb_file="$(mktemp -t youtube-dl-thumb-XXXXXX)"
 		curl "$thumbnail_url" --output "$thumb_file" --silent
 
-		echo "Uploading thumbnail to spee.ch..."
+		print_info "Uploading thumbnail to spee.ch..."
 		speech_data="$(curl "https://spee.ch/api/claim/publish" --request POST -F "file=@$thumb_file" --silent)"
 		rm "$thumb_file"
 
 		thumbnail_url="$(printf '%s' "$speech_data" | jq '.data.serveUrl' --raw-output)"
-		echo "Uploaded as $thumbnail_url"
+		print_info "Uploaded as $thumbnail_url"
 	fi
 
 	if [ "$thumbnail_url" != 'null' ]; then
@@ -455,38 +493,38 @@ while read -r line; do
 	# strip null values because lbrynet can't handle them
 
 	if [ -z "$bid" ]; then
-		echo "This content would've been published if you'd supplied the --bid amount:"
+		print_info "This content would've been published if you'd supplied the --bid amount:"
 		printf '%s' "$data" | jq
 	else
-		echo "Publishing \"$name\"..."
+		print_info "Publishing \"$name\"..."
 		result="$(curl --silent -d"{\"method\": \"publish\", \"params\": $data}" "$api_server")"
 
 		#Print result
 		lbrynet_check_error "$result"
 
 		if url="$(printf '%s' "$result" | jq '.result.outputs | .[] | select(.type == "claim") | .permanent_url' --exit-status --raw-output)"; then
-			echo "Published as $url"
+			print_info "Published as $url"
 		fi
 	fi
 done < "$info_dir/fifo"
 
 if [ -n "$bid" ]; then
-	echo "Done. Please wait for a few minutes for claims to be processed by the network."
+	print_info "Done. Please wait for a few minutes for claims to be processed by the network."
 else
-	echo "Done. Please verify that all the data is correct,"
-	echo "then run the command again with the --bid option."
+	print_info "Done. Please verify that all the data is correct,"
+	print_info "then run the command again with the --bid option."
 fi
 
 if [ -n "$skipped" ]; then
-       printf "\n\033[31mWarning: some videos got skipped!\033[0m\n"
-       echo "Some videos were skipped automatically because a video with the exact same upload name already exists on LBRY."
-       echo "Use --overwrite option to upload them."
+       print_info "\n\033[31mWarning: some videos got skipped!\033[0m"
+       print_info "Some videos were skipped automatically because a video with the exact same upload name already exists on LBRY."
+       print_info "Use --overwrite option to upload them."
        exit 1
 fi
 
 if [ -n "$ytdl_error" ]; then
-       printf "\n\033[31mWarning: youtube-dl had finished with an error!\033[0m\n"
-       echo "If you're uploading a playlist, this might mean that some videos were unavailable."
+       print_info "\n\033[31mWarning: youtube-dl had finished with an error!\033[0m\n"
+       print_info "If you're uploading a playlist, this might mean that some videos were unavailable."
        exit 1
 fi
 
