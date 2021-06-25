@@ -412,17 +412,10 @@ trap 'rm -r "$info_dir" && rm "$download_info_file"' EXIT
 
 # Try to find already existing LBRY upload with this name
 check_exists() {
-	result="$(curl --silent -d"{\"method\": \"get\", \"params\": {\"uri\": \"$1\"}}" "$api_server")"
+	result="$(curl --silent -d"{\"method\": \"resolve\", \"params\": {\"urls\": [\"$1\"]}}" "$api_server")"
 
-	not_found=n
-	if printf '%s' "$result" | jq '.result.error' --exit-status > /dev/null; then
-		case "$result" in
-			*'"error": "Failed to resolve'* )
-				not_found=y
-				;;
-		esac
-	fi
-	if [ "$not_found" = y ]; then
+	error_name="$(printf '%s' "$result" | jq ".result[\"$1\"].error.name" --raw-output)"
+	if [ "$error_name" = 'NOT_FOUND' ]; then
 		return 1
 	fi
 }
@@ -450,11 +443,14 @@ publish() {
 
 	print_info
 
-	if [ -z "$overwrite" ] && check_exists "$publish_name"; then
-		print_info "Skipping $name"
-		print_info "Already published: $publish_name"
-		skipped=y
-		return
+	if [ -z "$overwrite" ]; then 
+		print_info "Checking if $publish_name is already published..."
+		if check_exists "$publish_name"; then
+			print_info "Skipping $name"
+			print_info "Already published: $publish_name"
+			skipped=y
+			return
+		fi
 	fi
 
 
@@ -535,7 +531,6 @@ publish() {
 		fi
 	fi
 }
-
 
 while read -r line; do
 	for i in 1 2 3; do
