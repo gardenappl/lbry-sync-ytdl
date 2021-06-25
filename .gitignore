@@ -1,7 +1,10 @@
-*.mp3
+*.1
+
 *.json
+*.part
+
+*.mp3
 *.mp4
 *.webm
 *.mkv
-*.part
-*.1
+*.wav
