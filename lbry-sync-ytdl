@@ -176,7 +176,7 @@ B<youtube-dl>
 
 
 
-_lbry_sync_ytdl_version="v1.8"
+_lbry_sync_ytdl_version="v1.8.1"
 
 set -o errexit
 
