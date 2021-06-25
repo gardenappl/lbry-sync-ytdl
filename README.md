@@ -40,11 +40,14 @@ Users of Arch-based distos may use the "official" [AUR package](https://aur.arch
 
 Go to the [releases page](https://gitlab.com/gardenappl/lbry-sync-ytdl/-/releases) and grab the latest stable version from there. Simply download the archive, and put the script somewhere in your PATH.
 
+If you want to build the manpage, install Perl and run `make`.
+
 #### Dependencies
 
-* [youtube-dl](https://youtube-dl.org/)
+* Either [youtube-dl](https://youtube-dl.org/) or its fork [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 * [jq](https://stedolan.github.io/jq/)
 * curl
+* Perl, if you want to build the manpage
 * the LBRY app (or a standalone "lbrynet" daemon)
 
 ## Known issues
