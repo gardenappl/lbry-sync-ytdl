@@ -1,6 +1,163 @@
 #!/bin/sh
 
-_lbry_sync_ytdl_version="v1.7.1"
+: <<=cut
+
+=pod
+
+=head1 NAME
+
+lbry-sync-ytdl - Copy videos to LBRY
+
+
+=head1 SYNOPSIS
+
+B<lbry-sync-ytdl> [-b I<bid>] [-c I<channel>] I<videourl>
+
+
+=head1 DESCRIPTION
+
+B<lbry-sync-ytdl> copies videos from video sites (such as YouTube) to
+the LBRY network.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-a> I<server>
+
+=item B<--api> I<server>
+
+User I<server> as LBRY server.
+
+
+=item B<-b> I<bid>
+
+=item B<--bid> I<bid>
+
+Use I<bid> as bid.
+
+
+=item B<-c> I<channel>
+
+=item B<--channel> I<channel>
+
+Publish to channel I<channel>.
+
+
+=item B<-h>
+
+=item B<--help>
+
+Show help.
+
+
+=item B<-l> I<lic>
+
+=item B<--license> I<lic>
+
+Use I<lic> as license.
+
+
+=item B<-L> I<lang>
+
+=item B<--language> I<lang>
+
+Use I<lang> as language.
+
+
+=item B<--no-optimize-video>
+
+=item B<--optimize-video>
+
+(Do not) optimize video.
+
+
+=item B<-o>
+
+=item B<--overwrite>
+
+Overwrite claim.
+
+
+=item B<--orig-thumbnail>
+
+Use original thumbnail.
+
+
+=item B<--postprocessor-args> I<args>
+
+Use I<args> for postprocessing.
+
+
+=item B<-v>
+
+=item B<--version>
+
+Show version.
+
+
+=item B<--validate-video>
+
+Validate video.
+
+
+=item B<-y> I<opts>
+
+=item B<--ytdl-options> I<opts>
+
+Use I<opts> as options for B<youtube-dl>.
+
+
+=back
+
+
+=head1 EXAMPLE
+
+Copy video from YouTube to channel MyChannel
+
+  lbry-sync-ytdl -b 1.0 -c @MyChannel https://youtu.be/OpaiGYxkSuQ
+
+MyChannel must be created in LBRY.
+
+
+=head1 AUTHOR
+
+Copyright (C) 2020-2021 gardenappl, and Ole Tange.
+
+
+=head1 LICENSE
+
+Copyright (C) 2012 Free Software Foundation, Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+at your option any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+=head1 DEPENDENCIES
+
+B<lbry-sync-ytdl> uses B<youtube-dl>, B<curl>, and B<lbrynet>.
+
+
+=head1 SEE ALSO
+
+B<youtube-dl>
+
+
+=cut
+
+
+
+_lbry_sync_ytdl_version="v1.7.2"
 
 set -o errexit
 
@@ -332,3 +489,9 @@ if [ -n "$ytdl_error" ]; then
        echo "If you're uploading a playlist, this might mean that some videos were unavailable."
        exit 1
 fi
+
+# Local Variables:
+# mode: Shell
+# tab-width: 4
+# sh-basic-offset: 4
+# End:
