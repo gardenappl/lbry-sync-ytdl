@@ -38,16 +38,23 @@ Users of Arch-based distos may use the "official" [AUR package](https://aur.arch
 
 ### Other UNIX
 
-Go to the [releases page](https://gitlab.com/gardenappl/lbry-sync-ytdl/-/releases) and grab the latest stable version from there. Simply download the archive, and put the script somewhere in your PATH.
+Go to the [releases page](https://gitlab.com/gardenappl/lbry-sync-ytdl/-/releases) and grab the latest version from there. Extract the archive.
 
-If you want to build the manpage, install Perl and run `make`.
+Or just use Git.
+
+Then run:
+
+```
+make
+sudo make install
+```
 
 #### Dependencies
 
 * Either [youtube-dl](https://youtube-dl.org/) or its fork [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 * [jq](https://stedolan.github.io/jq/)
 * curl
-* Perl, if you want to build the manpage
+* Perl, for building the man page
 * the LBRY app (or a standalone "lbrynet" daemon)
 
 ## Known issues
