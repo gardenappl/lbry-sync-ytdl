@@ -417,7 +417,7 @@ check_exists() {
 
 
 
-if type yt-dl > /dev/null; then
+if type yt-dlp > /dev/null; then
 	ytdl="yt-dlp --compat-options youtube-dl"
 else
 	ytdl="youtube-dl"
