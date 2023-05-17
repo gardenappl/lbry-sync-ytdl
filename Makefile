@@ -1,10 +1,11 @@
 PREFIX = /usr
 BINDIR = ${PREFIX}/bin
 MANDIR = ${PREFIX}/share/man
+VERSION = 1.8.3
 
 
 all:
-	pod2man lbry-sync-ytdl --center="General Commands Manual" > lbry-sync-ytdl.1
+	pod2man lbry-sync-ytdl --release="lbry-sync-ytdl ${VERSION}" --center="General Commands Manual" > lbry-sync-ytdl.1
 
 install:
 	install -d "${DESTDIR}${BINDIR}"

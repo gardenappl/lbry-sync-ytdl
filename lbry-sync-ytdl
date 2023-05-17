@@ -6,7 +6,7 @@
 
 =head1 NAME
 
-lbry-sync-ytdl - Copy videos to LBRY
+lbry-sync-ytdl - copy videos from centralized media-hosting platforms to LBRY
 
 
 =head1 SYNOPSIS
@@ -16,30 +16,23 @@ B<lbry-sync-ytdl> [-b I<bid>] [-c I<channel>] I<videourl>
 
 =head1 DESCRIPTION
 
-B<lbry-sync-ytdl> copies videos from video sites (such as YouTube) to
-the LBRY network.
+B<lbry-sync-ytdl> copies videos or audio (including playlists) from media hosting sites (such as YouTube) to the LBRY network.
 
 =head1 OPTIONS
 
 =over 4
 
-=item B<-a> I<server>
+=item B<-a>, B<--api> I<server>
 
-=item B<--api> I<server>
-
-User I<server> as LBRY server.
+Custom URL for lbyrnet API (e.g. "https://localhost:5279")
 
 
-=item B<-b> I<bid>
+=item B<-b>, B<--bid> I<bid>
 
-=item B<--bid> I<bid>
-
-Use I<bid> as bid.
+Amount of LBC to deposit for each piece of content.
 
 
-=item B<-c> I<channel>
-
-=item B<--channel> I<channel>
+=item B<-c>, B<--channel> I<channel>
 
 Publish to channel I<channel>.
 
@@ -49,82 +42,59 @@ Publish to channel I<channel>.
 Don't publish anything; print out URL if a file with the same name does not exist on LBRY.
 
 
-=item B<-h>
-
-=item B<--help>
+=item B<-h>, B<--help>
 
 Show help.
 
 
-=item B<-l> I<lic>
+=item B<-l>, B<--license> I<lic>
 
-=item B<--license> I<lic>
-
-Use I<lic> as license.
+Use I<lic> as license (overrides information gathered from yt-dlp).
 
 
-=item B<-L> I<lang>
+=item B<-L>, B<--language> I<lang>
 
-=item B<--language> I<lang>
-
-Use I<lang> as language.
+Use I<lang> as language, such as 'en' or 'uk-UA' (overrides information gathered by yt-dlp).
 
 
 =item B<--no-optimize-video>
 
-=item B<--optimize-video>
-
-(Do not) optimize video.
+Disable lbrynet's automatic video post-processing with ffmpeg.
 
 
-=item B<-o>
+=item B<-o>, B<--overwrite>
 
-=item B<--overwrite>
-
-Overwrite claim.
+Upload content even if a LBRY claim with this name already exists.
 
 
 =item B<--orig-thumbnail>
 
-Use original thumbnail.
+Use the thumbnail URL provided by the original site, rather than re-uploading to LBRY.
 
 
-=item B<-q>
-
-=item B<--quiet>
+=item B<-q>, B<--quiet>
 
 No info output.
 
 
-=item B<-Q>
-
-=item B<--really-quiet>
+=item B<-Q>, B<--really-quiet>
 
 No info or error output.
 
 
 =item B<--postprocessor-args> I<args>
 
-Use I<args> for postprocessing.
+Pass arguments I<args> to the post-processor (for example \"-strict -2\" for ffmpeg).
 
 
-=item B<-v>
+=item B<-v>, B<--version>
 
-=item B<--version>
-
-Show version.
+Show script version and exit.
 
 
-=item B<--validate-video>
+=item B<-y>, B<--ytdl-options> I<opts>
 
-Validate video.
-
-
-=item B<-y> I<opts>
-
-=item B<--ytdl-options> I<opts>
-
-Use I<opts> as options for B<youtube-dl>.
+Pass arguments I<opts> as options for B<yt-dlp> (e.g. \"--playlist-start=10\").
 
 
 =back
@@ -132,16 +102,30 @@ Use I<opts> as options for B<youtube-dl>.
 
 =head1 EXAMPLE
 
-Copy video from YouTube to channel MyChannel
+=over 4
 
-  lbry-sync-ytdl -b 1.0 -c @MyChannel https://youtu.be/OpaiGYxkSuQ
+=item lbry-sync-ytdl "https://www.youtube.com/watch?v=dPZTh2NKTm4"
 
-MyChannel must be created in LBRY.
+Run the script in test mode and just show the information that youtube-dl managed to extract. 
+
+=item lbry-sync-ytdl "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0
+
+Actually publish content and bid 1 LBC. It's recommended to run this only after running the script in test mode. 
+
+This will publish the content anonymously.
+
+=item lbry-sync-ytdl --channel="@MyChannel" "https://www.youtube.com/watch?v=dPZTh2NKTm4" --bid=1.0
+
+Publish content to @MyChannel. 
+
+The channel must already exist on the LBRY network and be owned by the current lbrynet user.
+
+=back
 
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-Copyright (C) 2020-2021 gardenappl, and Ole Tange.
+Copyright (C) 2020-2023 gardenappl, with contributions from Ole Tange and matthiss.
 
 
 =head1 LICENSE
@@ -164,19 +148,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 =head1 DEPENDENCIES
 
-B<lbry-sync-ytdl> uses B<youtube-dl>, B<curl>, and B<lbrynet>.
+B<lbry-sync-ytdl> uses B<yt-dlp> (or B<youtube-dl>), B<curl>, B<lbrynet>, and (optionally) B<ffmpeg>.
 
 
 =head1 SEE ALSO
 
-B<youtube-dl>
+B<yt-dlp>(1), B<youtube-dl>(1)
 
 
 =cut
 
 
 
-_lbry_sync_ytdl_version="v1.8.2"
+_lbry_sync_ytdl_version="v1.8.3"
 
 set -o errexit
 
@@ -286,21 +270,21 @@ print_help() {
 	echo \
 "Usage: lbry-sync-ytdl URL [options...]
 
-	-a, --api 			Custom URL for lbyrnet API (e.g. \"https://localhost:5279\")
-	-b, --bid 			Amount of LBC to deposit for each piece of content
-	-c, --channel 			Name of publisher channel (e.g. \"@MyCoolChannel\")
-	    --dry-run 			Don't publish anything; print out URL if a file with the same name does not exist on LBRY.
-	-h, --help 			Print help
-	-l, --license 			Add license information (overrides info from youtube-dl)
-	-L, --language 			Add language tag, like \"en\" or \"uk-UA\"
-	    --no-optimize-video 	Upload video as-is, don't let LBRY transcode it
-	    --orig-thumbnail 		Use original thumbnail URL instead of re-uploading to LBRY/spee.ch
-	-o, --overwrite 		Upload content even if a file with the same name exists on LBRY
-	-q, --quiet 			No info output
-	-Q, --really-quiet 		No info or error output
-	    --postprocessor-args 	Set custom options for youtube-dl postprocessor, usually FFmpeg (e.g. \"-strict -2\")
-	-v, --version 			Print version and exit
-	-y, --ytdl-options 		Set custom options for youtube-dl (e.g. \"--playlist-start=10\")
+	-a, --api URL                   Custom URL for lbyrnet API (e.g. \"https://localhost:5279\")
+	-b, --bid LBC                   Amount of LBC to deposit for each piece of content
+	-c, --channel CHANNEL           Name of publisher channel (e.g. \"@MyCoolChannel\")
+	    --dry-run                   Don't publish anything; print out URL if a file with the same name does not exist on LBRY.
+	-h, --help                      Print help
+	-l, --license LICENSE           Add license information (overrides info from youtube-dl)
+	-L, --language LANG             Add language tag, like \"en\" or \"uk-UA\"
+	    --no-optimize-video         Upload video as-is, don't let LBRY transcode it
+	    --orig-thumbnail            Use original thumbnail URL instead of re-uploading to LBRY/spee.ch
+	-o, --overwrite                 Upload content even if a file with the same name exists on LBRY
+	-q, --quiet                     No info output
+	-Q, --really-quiet              No info or error output
+	    --postprocessor-args OPTS   Set custom options for youtube-dl postprocessor, usually FFmpeg (e.g. \"-strict -2\")
+	-v, --version                   Print version and exit
+	-y, --ytdl-options OPTS         Set custom options for youtube-dl (e.g. \"--playlist-start=10\")
 
 If --bid is not provided, script will NOT publish anything, treat that as a test run.
 
